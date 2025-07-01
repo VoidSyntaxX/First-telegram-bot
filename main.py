@@ -1,87 +1,101 @@
+import logging
+import os
+import requests
+from dotenv import load_dotenv
 from typing import Final
 from telegram import Update
 from telegram.ext import (
-    Application,
+    ApplicationBuilder,
     CommandHandler,
     MessageHandler,
-    filters,
     ContextTypes,
+    filters,
 )
 
+load_dotenv()
 
-# Commands
-TOKEN: Final = "7996575119:AAFZIRfcU47l_tFrwjI33r9oJ2ZXYOY5wrw"
+# ========== Logging ==========
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# ========== Config ==========
+TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
 BOT_USERNAME: Final = "@this_my_first_ever_bot"
+WEATHER_API_KEY: Final = os.getenv("WEATHER_API_KEY")
+
+# ========== Commands ==========
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Hello! Thanks for chatting with me! I am Void's first bot :)"
+        "Hello! I can give you weather info.\nUse /weather <city name> like: /weather Paris"
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Please type something so I can respond!")
+    await update.message.reply_text("Use /weather <city>. Example: /weather Tokyo")
 
 
 async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("This is a custom command!")
 
 
-# Responses
+# ========== Weather Handler ==========
+def get_weather(city: str) -> str:
+    url = (
+        f"https://api.openweathermap.org/data/2.5/weather"
+        f"?q={city}&appid={WEATHER_API_KEY}&units=metric"
+    )
+    response = requests.get(url)
+    if response.status_code != 200:
+        return "❌ City not found or error fetching weather."
+
+    data = response.json()
+    name = data["name"]
+    temp = data["main"]["temp"]
+    condition = data["weather"][0]["description"].capitalize()
+
+    return f"🌤 Weather in {name}:\nTemperature: {temp}°C\nCondition: {condition}"
 
 
-def handle_response(text: str) -> str:
-    processed: str = text.lower()
+async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "⚠️ Please provide a city. Example: /weather Berlin"
+        )
+        return
 
-    if "hello" in processed:
-        return "Hey there!"
-
-    if "how are you" in processed:
-        return "I'm good, thank you!"
-
-    return "I do not understand what you wrote..."
+    city = " ".join(context.args)
+    logger.info(f"Fetching weather for: {city}")
+    result = get_weather(city)
+    await update.message.reply_text(result)
 
 
+# ========== Fallback Message ==========
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_type: str = update.message.chat.type
-    text: str = update.message.text
-
-    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
-
-    if message_type == "group":
-        if BOT_USERNAME in text:
-            new_text: str = text.replace(BOT_USERNAME, "").strip()
-            response: str = handle_response(new_text)
-        else:
-            return
-
-    else:
-        response: str = handle_response(text)
-
-    print("Bot:", response)
-    await update.message.reply_text(response)
+    text = update.message.text
+    await update.message.reply_text("❓ I don't understand. Try /weather <city>.")
 
 
-async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Update {update} caused error {context.error}")
+# ========== Error Handler ==========
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logger.error(f"Update {update} caused error: {context.error}")
 
 
+# ========== Main ==========
 if __name__ == "__main__":
     print("Starting bot...")
-    app = Application.builder().token(TOKEN).build()
 
-    # Commands
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("custom", custom_command))
+    app.add_handler(CommandHandler("weather", weather_command))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_error_handler(error_handler)
 
-    # Messages
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
-
-    # Errors
-    app.add_error_handler(error)
-
-    # Polling the bot
     print("Polling...")
-    app.run_polling(poll_interval=3)
+    app.run_polling()
