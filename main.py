@@ -21,9 +21,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ========== Config ==========
-TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 BOT_USERNAME: Final = "@this_my_first_ever_bot"
 WEATHER_API_KEY: Final = os.getenv("WEATHER_API_KEY")
+
+app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # ========== Commands ==========
 
