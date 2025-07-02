@@ -1,7 +1,7 @@
 import logging
 import os
-import requests
 from dotenv import load_dotenv
+import requests
 from typing import Final
 from telegram import Update
 from telegram.ext import (
@@ -21,12 +21,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ========== Config ==========
-TELEGRAM_TOKEN = os.getenv(
-    "TELEGRAM_TOKEN", "7996575119:AAFZIRfcU47l_tFrwjI33r9oJ2ZXYOY5wrw"
-)
+TELEGRAM_TOKEN: Final = os.getenv("TELEGRAM_TOKEN")
 BOT_USERNAME: Final = "@this_my_first_ever_bot"
-WEATHER_API_KEY: Final = os.getenv("WEATHER_API_KEY", "bb1375f7a48ff327d9989816cba9eca6")
-# app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+WEATHER_API_KEY: Final = os.getenv("WEATHER_API_KEY")
+application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
 # ========== Commands ==========
 
